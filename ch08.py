@@ -2,6 +2,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from mpl_toolkits.basemap import Basemap #使用该命令安装basemap: conda install -c conda-forge basemap
 
 # fig = plt.figure()
 # ax1 = fig.add_subplot(2, 2, 1)
@@ -94,7 +95,6 @@ def to_cat_list(catstr):
     return [x for x in stripped if x]
 def get_all_categories(cat_series):
     cat_sets = (set(to_cat_list(x)) for x in cat_series)
-    print(cat_sets)
     return sorted(set.union(*cat_sets))
 def get_english(cat):
     code, names = cat.split('.')
@@ -104,6 +104,14 @@ def get_english(cat):
 all_cats  = get_all_categories(data.CATEGORY)
 english_mapping = dict(get_english(x) for x in all_cats)
 def get_code(seq):
-    return [x.split('.') for x in seq if x]
+    return [x.split('.')[0] for x in seq if x]
+all_codes = get_code(all_cats)
+code_index = pd.Index(np.unique(all_codes))
+dummy_frame = pd.DataFrame(np.zeros((len(data), len(code_index))), index=data.index, columns=code_index)
+for row, cat in zip(data.index, data.CATEGORY):
+    codes = get_code(to_cat_list(cat))
+    dummy_frame.loc[row, codes] = 1
+
+print(dummy_frame)
 
 plt.show()
