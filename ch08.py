@@ -20,6 +20,7 @@ array = np.random.randn(100)
 fig, axes = plt.subplots(2, 2)
 axes[0][0].plot(np.random.randn(30).cumsum(), 'ko--')
 axes[0][1].plot(np.random.randn(30).cumsum(), color='r', linestyle='dashed', marker='o')
-print(plt.xlim([11, 20]))
+plt.xlim(0, 5) #设置只对最后一个axes生效，除非sharex=True，可以应用到所有axes上
+axes[0][0].set_xlim(0, 5) #单独设置某个axes的坐标范围
 
 plt.show()
