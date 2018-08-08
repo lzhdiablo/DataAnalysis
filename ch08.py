@@ -111,7 +111,33 @@ dummy_frame = pd.DataFrame(np.zeros((len(data), len(code_index))), index=data.in
 for row, cat in zip(data.index, data.CATEGORY):
     codes = get_code(to_cat_list(cat))
     dummy_frame.loc[row, codes] = 1
-
-print(dummy_frame)
+data = data.join(dummy_frame.add_prefix('category_'))
+def basic_haiti_map(ax=None, lllat=17.25, urlat=20.25, lllon=-75, urlon=-71):
+    m = Basemap(ax=ax, projection='stere',
+                lon_0=(urlon + lllon) / 2,
+                lat_0=(urlat + lllat) / 2,
+                llcrnrlat=lllat,
+                urcrnrlat=urlat,
+                llcrnrlon=lllon,
+                urcrnrlon=urlon,
+                resolution='f')
+    m.drawcoastlines()
+    m.drawstates()
+    m.drawcounties()
+    return m
+fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 10))
+fig.subplots_adjust(hspace=0.05, wspace=0.05)
+# to_plot = ['2a', '1', '3c', '7a']
+to_plot = ['2a']
+lllat = 17.25; urlat = 20.25; lllon = -75; urlon = -71
+for code, ax in zip(to_plot, axes.flat):
+    m = basic_haiti_map(ax, lllat=lllat, urlat=urlat, lllon=lllon, urlon=urlon)
+    shapefile_path = 'ch08/PortAuPrince_Roads/PortAuPrince_Roads'
+    m.readshapefile(shapefile_path, 'roads')
+    cat_data = data[data['category_%s' % code] == 1]
+    print(type(cat_data.LONGITUDE))
+    x, y = m(np.array(cat_data.LONGITUDE), np.array(cat_data.LATITUDE))
+    m.plot(x, y, 'k.', alpha=0.5)
+    ax.set_title('%s: %s' % (code, english_mapping[code]))
 
 plt.show()
