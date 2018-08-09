@@ -4,8 +4,6 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.basemap import Basemap, cm
 from matplotlib import rcParams
 from matplotlib.collections import LineCollection
-import shapefile
-import dbf
 
 df = pd.DataFrame({'key1': ['a', 'a', 'b', 'b', 'a'],
                    'key2': ['one', 'two', 'one', 'two', 'one'],
@@ -176,47 +174,5 @@ grouped = fec_mrbo.groupby(['cand_nm', labels])
 bucket_sums = grouped.contb_receipt_amt.sum().unstack(0)
 normed_sums = bucket_sums.div(bucket_sums.sum(axis=1), axis=0)
 # normed_sums[:-2].plot(kind='barh', stacked=True)
-grouped = fec_mrbo.groupby(['cand_nm', 'contbr_st'])
-totals = grouped.contb_receipt_amt.sum().unstack(0).fillna(0)
-totals = totals[totals.sum(1) > 100000]
-percent = totals.div(totals.sum(1), axis=0)
-obama = percent['Obama, Barack']
-fig = plt.figure(figsize=(12, 12))
-ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-lllat = 21; urlat = 53; lllon = -118; urlon = -62
-m = Basemap(ax=ax, projection='stere', lon_0=(urlon + lllon) / 2, lat_0=(urlat + lllat) / 2,
-            llcrnrlon=lllon, llcrnrlat=lllat, urcrnrlon=urlon, urcrnrlat=urlat, resolution='l')
-m.drawcoastlines()
-m.drawcounties()
-shapefile.Writer().save('ch09/statesp020')
-dbf = shapefile.Reader('ch09/statesp020.dbf')
-shp = shapefile.Reader('ch09/statesp020.shp')
-state_to_code = pd.read_table('ch09/state_to_code.txt',
-                              index_col=0,
-                              delimiter=', ',
-                              engine='python',
-                              header=None).loc[:,:]
-state_to_code = state_to_code.to_dict()[1]
-for npoly in range(shp.info()[0]):
-    shpsegs = []
-    shp_object = shp.read_object(npoly)
-    verts = shp_object.vertices()
-    rings = len(verts)
-    for ring in range(rings):
-        lons, lats = zip(*verts[ring])
-        x, y = m(lons, lats)
-        shpsegs.append(zip(x, y))
-        if ring == 0:
-            shapedict = dbf.read_record(npoly)
-        name = shapedict['STATE']
-    lines = LineCollection(shpsegs, antialiaseds=(1,))
-    try:
-        per = obama[state_to_code[name.upper()]]
-    except KeyError:
-        continue
-    lines.set_facecolors('k')
-    lines.set_alpha(0.75 * per)
-    lines.set_edgecolors('k')
-    lines.set_linewidth(0.3)
 
 plt.show()
