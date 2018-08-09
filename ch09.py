@@ -1,5 +1,11 @@
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
+from mpl_toolkits.basemap import Basemap, cm
+from matplotlib import rcParams
+from matplotlib.collections import LineCollection
+import shapefile
+import dbf
 
 df = pd.DataFrame({'key1': ['a', 'a', 'b', 'b', 'a'],
                    'key2': ['one', 'two', 'one', 'two', 'one'],
@@ -116,8 +122,101 @@ grouped = df.groupby('category')
 get_wavg = lambda g: np.average(g['data'], weights=g['weights'])
 grouped.apply(get_wavg) #计算分组加权平均数
 
-print(tips)
 mean1 = tips.groupby(['sex', 'smoker']).mean()
 mean1 = tips.pivot_table(index=['sex', 'smoker']) # pivot_table默认聚合为取平均，效果和groupby相同
-mean2 = tips.pivot_table(['tip_pct', 'size'], index=['sex', 'day'], columns='smoker')
-print(mean2)
+mean2 = tips.pivot_table(['tip_pct', 'size'], index=['sex', 'smoker'], columns='day', margins=True, aggfunc=sum)
+
+data = pd.DataFrame({'Sample': np.arange(1, 11),
+                     'Gender': ['Female', 'Male', 'Female', 'Male', 'Male', 'Male', 'Female', 'Female', 'Male', 'Female'],
+                     'Handedness': ['Right-handed', 'Left-handed', 'Right-handed', 'Right-handed', 'Left-handed', 'Right-handed',
+                                    'Right-handed', 'Left-handed', 'Right-handed', 'Right-handed']})
+sum = data.pivot_table(index='Gender', columns='Handedness', aggfunc=len, margins=True)
+sum = pd.crosstab(data.Gender, data.Handedness, margins=True) #此效果用pivot_table同样可以实现，但会出现重复数据，columns参数会和原来的columns构成层级化索引，数据重复
+tip_sum = pd.crosstab([tips.time, tips.day], tips.smoker, margins=True)
+
+fec = pd.read_csv('ch09/P00000001-ALL.csv', low_memory=False)
+unique_cands = fec.cand_nm.unique()
+parties = {'Bachmann, Michelle': 'Republican',
+           'Romney, Mitt': 'Republican',
+           'Obama, Barack': 'Democrat',
+           "Roemer, Charles E. 'Buddy' III": 'Republican',
+           'Pawlenty, Timothy': 'Republican',
+           'Johnson, Gary Earl': 'Republican',
+           'Paul, Ron': 'Republican',
+           'Santorum, Rick': 'Republican',
+           'Cain, Herman': 'Republican',
+           'Gingrich, Newt': 'Republican'}
+fec['party'] = fec.cand_nm.map(parties)
+fec = fec[fec.contb_receipt_amt > 0] #只考虑赞助额不考虑退款情况
+fec_mrbo = fec[fec.cand_nm.isin(['Obama, Barack', 'Romney, Mitt'])]
+occ_mapping = {'C.E.O.': 'CEO',
+               'INFORMATION REQUESTED': 'NOT PROVIDED',
+               'INFORMATION REQUESTED PER BEST EFFORTS': 'NOT PROVIDED',
+               'INFORMATION REQUESTED (BEST EFFORTS)': 'NOT PROVIDED'}
+f = lambda x: occ_mapping.get(x, x)
+fec.contbr_occupation = fec.contbr_occupation.map(f)
+emp_mapping = {'SELF': 'SELF-EMPLOYED',
+               'INFORMATION REQUESTED': 'NOT PROVIDED',
+               'INFORMATION REQUESTED PER BEST EFFORTS': 'NOT PROVIDED',
+               'SELF EMPLOYED': 'SELF-EMPLOYED'}
+f = lambda x: emp_mapping.get(x, x)
+fec.contbr_employer = fec.contbr_employer.map(f)
+by_occupation = fec.pivot_table('contb_receipt_amt', index='contbr_occupation', columns='party', aggfunc=np.sum)
+over_2mm = by_occupation[by_occupation.sum(1) > 2000000]
+# over_2mm.plot(kind='bar')
+def get_top_amount(group, key, n=5):
+    totals = group.groupby(key)['contb_receipt_amt'].sum()
+    return totals.sort_values(ascending=False)[:n]
+top_contbr = fec_mrbo.groupby('cand_nm').apply(get_top_amount, 'contbr_occupation', n=7)
+# print(top_contbr)
+bins = np.array([0, 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000])
+labels = pd.cut(fec_mrbo.contb_receipt_amt, bins=bins)
+grouped = fec_mrbo.groupby(['cand_nm', labels])
+# print(grouped.size().unstack(level=0))
+bucket_sums = grouped.contb_receipt_amt.sum().unstack(0)
+normed_sums = bucket_sums.div(bucket_sums.sum(axis=1), axis=0)
+# normed_sums[:-2].plot(kind='barh', stacked=True)
+grouped = fec_mrbo.groupby(['cand_nm', 'contbr_st'])
+totals = grouped.contb_receipt_amt.sum().unstack(0).fillna(0)
+totals = totals[totals.sum(1) > 100000]
+percent = totals.div(totals.sum(1), axis=0)
+obama = percent['Obama, Barack']
+fig = plt.figure(figsize=(12, 12))
+ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+lllat = 21; urlat = 53; lllon = -118; urlon = -62
+m = Basemap(ax=ax, projection='stere', lon_0=(urlon + lllon) / 2, lat_0=(urlat + lllat) / 2,
+            llcrnrlon=lllon, llcrnrlat=lllat, urcrnrlon=urlon, urcrnrlat=urlat, resolution='l')
+m.drawcoastlines()
+m.drawcounties()
+shapefile.Writer().save('ch09/statesp020')
+dbf = shapefile.Reader('ch09/statesp020.dbf')
+shp = shapefile.Reader('ch09/statesp020.shp')
+state_to_code = pd.read_table('ch09/state_to_code.txt',
+                              index_col=0,
+                              delimiter=', ',
+                              engine='python',
+                              header=None).loc[:,:]
+state_to_code = state_to_code.to_dict()[1]
+for npoly in range(shp.info()[0]):
+    shpsegs = []
+    shp_object = shp.read_object(npoly)
+    verts = shp_object.vertices()
+    rings = len(verts)
+    for ring in range(rings):
+        lons, lats = zip(*verts[ring])
+        x, y = m(lons, lats)
+        shpsegs.append(zip(x, y))
+        if ring == 0:
+            shapedict = dbf.read_record(npoly)
+        name = shapedict['STATE']
+    lines = LineCollection(shpsegs, antialiaseds=(1,))
+    try:
+        per = obama[state_to_code[name.upper()]]
+    except KeyError:
+        continue
+    lines.set_facecolors('k')
+    lines.set_alpha(0.75 * per)
+    lines.set_edgecolors('k')
+    lines.set_linewidth(0.3)
+
+plt.show()

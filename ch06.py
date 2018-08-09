@@ -24,11 +24,11 @@ for piece in chunk:
 # print(tot.sort_values(ascending=False))
 
 df8 = pd.read_csv('ch06/ex5.csv')
-df8.to_csv('ch06/out.csv', sep=':', na_rep='NULL', index=False, header=False, columns=['a', 'b', 'c'])
+# df8.to_csv('ch06/out.csv', sep=':', na_rep='NULL', index=False, header=False, columns=['a', 'b', 'c'])
 
 dates = pd.date_range('1/1/2018', periods=7)
 ts = pd.Series(np.arange(7), index=dates)
-ts.to_csv('ch06/tseries.csv', sep=':')
+# ts.to_csv('ch06/tseries.csv', sep=':')
 # print(pd.read_csv('ch06/tseries.csv', sep=':', header=None, index_col=1))
 
 with open('ch06/ex7.csv') as f:
@@ -36,11 +36,6 @@ with open('ch06/ex7.csv') as f:
     header, values = lines[0], lines[1:]
     data_dict = {h: v for h, v in zip(header, zip(*values))}
     # print(data_dict)
-
-with open('ch06/ex7.csv') as f:
-    lines = list(csv.reader(f))
-    header, values = lines[0], lines[1:]
-    data_dict = {h: v for h, v in zip(header, zip(*values))}
 
 obj = """
     {"name": "Wes",
