@@ -5,6 +5,7 @@ import pytz
 from pandas.tseries.offsets import MonthEnd
 import pandas as pd
 import numpy as np
+from matplotlib import pyplot as plt
 
 now = datetime.now()
 # print(now)
@@ -96,3 +97,49 @@ pts2 = ts2.to_period('M')
 # print(pts2)
 t_s = pts.to_timestamp(how='end')
 # print(t_s)
+
+data = pd.read_csv('ch08/macrodata.csv')
+index = pd.PeriodIndex(year=data.year, quarter=data.quarter, freq='Q-DEC') #通过数组创建PeriodIndex
+data.index = index
+
+rng = pd.date_range('1/1/2000', periods=100, freq='D')
+ts = pd.Series(np.random.randn(len(rng)), index=rng)
+ts_resample = ts.resample('M').mean()
+ts_resample_period = ts_resample.to_period('M')
+ts_period = ts.to_period('M')
+# print(ts)
+# print(ts_resample)
+# print(ts_resample_period)
+# print(ts_period)
+
+rng = pd.date_range('1/1/2000', periods=12, freq='T')
+ts = pd.Series(range(12), index=rng)
+# print(ts)
+# print(ts.resample('5min').sum())
+# print(ts.resample('5min', closed='left', label='left').sum())
+# print(ts.resample('5min', closed='left', label='right').sum())
+# print(ts.resample('5min', closed='right').sum())
+# print(ts.resample('5min', closed='right', label='right').sum())
+# print(ts.resample('5min', closed='right', label='left').sum())
+# print(ts.resample('5min', label='right').sum())
+# print(ts.resample('5min').ohlc())
+
+frame = pd.DataFrame(np.random.rand(2, 4), index=pd.date_range('1/1/2000', periods=2, freq='W-WED'),
+                     columns=['Colorado', 'Texas', 'New York', 'Ohio'])
+# print(frame.resample('D').ffill(limit=2))
+# print(frame.resample('W-THU').ffill(limit=2))
+
+close_px_all = pd.read_csv('ch09/stock_px.csv', parse_dates=True, index_col=0)
+close_px = close_px_all[['AAPL', 'MSFT', 'XOM']]
+close_px = close_px.resample('B').ffill()
+# print(close_px_all)
+# print(close_px)
+# close_px.plot()
+# close_px.loc['2009'].plot()
+# close_px['AAPL'].loc['01-2011':'03-2011'].plot()
+appl_q = close_px['AAPL'].resample('Q-DEC').ffill()
+# appl_q.loc['2009':].plot()
+# close_px.AAPL.plot()
+# close_px.AAPL.rolling(window=250).mean().plot()
+
+plt.show()
